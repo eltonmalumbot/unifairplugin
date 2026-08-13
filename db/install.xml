@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="mod/unifair/db" VERSION="20260807" COMMENT="XMLDB file for Moodle mod_unifair"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
+>
+  <TABLES>
+    <TABLE NAME="unifair" COMMENT="Main unifair records">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="course" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true"/>
+        <FIELD NAME="intro" TYPE="text" NOTNULL="false"/>
+        <FIELD NAME="introformat" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="maxchoices" TYPE="int" LENGTH="3" NOTNULL="true" DEFAULT="3"/>
+        <FIELD NAME="timeopen" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timeclose" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="course_fk" TYPE="foreign" FIELDS="course" REFTABLE="course" REFFIELDS="id"/>
+      </KEYS>
+    </TABLE>
+
+    <TABLE NAME="unifair_session" COMMENT="Sessions belonging to a unifair instance">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="unifairid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true"/>
+        <FIELD NAME="description" TYPE="text" NOTNULL="false"/>
+        <FIELD NAME="sortorder" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timeopen" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timeclose" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="unifairid_fk" TYPE="foreign" FIELDS="unifairid" REFTABLE="unifair" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="unifairid_sortorder_idx" UNIQUE="false" FIELDS="unifairid, sortorder"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="unifair_uni" COMMENT="List of universities/items belonging to a unifair instance">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="unifairid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="sessionid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="uniname" TYPE="char" LENGTH="255" NOTNULL="true"/>
+        <FIELD NAME="capacity" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" COMMENT="0 means unlimited (no quota)"/>
+        <FIELD NAME="quotaused" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" COMMENT="Atomically maintained reservation counter"/>
+        <FIELD NAME="sortorder" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="unifairid" TYPE="foreign" FIELDS="unifairid" REFTABLE="unifair" REFFIELDS="id"/>
+        <KEY NAME="sessionid_fk" TYPE="foreign" FIELDS="sessionid" REFTABLE="unifair_session" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="unifairid_sortorder_idx" UNIQUE="false" FIELDS="unifairid, sortorder"/>
+        <INDEX NAME="sessionid_sortorder_idx" UNIQUE="false" FIELDS="sessionid, sortorder"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="unifair_choice" COMMENT="Student choices">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="unifairid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="uniid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="unifairid" TYPE="foreign" FIELDS="unifairid" REFTABLE="unifair" REFFIELDS="id"/>
+        <KEY NAME="uniid" TYPE="foreign" FIELDS="uniid" REFTABLE="unifair_uni" REFFIELDS="id"/>
+        <KEY NAME="userid_fk" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="unifairid_userid_idx" UNIQUE="false" FIELDS="unifairid, userid"/>
+        <INDEX NAME="uniid_userid_idx" UNIQUE="true" FIELDS="uniid, userid"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="unifair_attendance" COMMENT="Attendance status per student and session">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="unifairid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="sessionid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="status" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="unmarked"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="modifiedby" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="unifairid_fk" TYPE="foreign" FIELDS="unifairid" REFTABLE="unifair" REFFIELDS="id"/>
+        <KEY NAME="sessionid_fk" TYPE="foreign" FIELDS="sessionid" REFTABLE="unifair_session" REFFIELDS="id"/>
+        <KEY NAME="userid_fk" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="session_user_uix" UNIQUE="true" FIELDS="sessionid, userid"/>
+      </INDEXES>
+    </TABLE>
+  </TABLES>
+</XMLDB>

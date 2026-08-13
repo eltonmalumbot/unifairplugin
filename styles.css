@@ -1,0 +1,32 @@
+.path-mod-unifair .unifair-session-drag-handle {
+    cursor: grab;
+    display: inline-block;
+    font-size: 1.25rem;
+    line-height: 1;
+    padding: .35rem .5rem;
+    user-select: none;
+}
+
+.path-mod-unifair .unifair-session-drag-handle:active {
+    cursor: grabbing;
+}
+
+.path-mod-unifair .unifair-session-dragging {
+    opacity: .45;
+}
+
+.path-mod-unifair .unifair-session-order-table tbody tr[data-session-id] {
+    transition: opacity .15s ease;
+}
+
+.path-mod-unifair .unifair-sort-link {
+    color: inherit;
+    display: inline-block;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.path-mod-unifair .unifair-sort-link:hover,
+.path-mod-unifair .unifair-sort-link:focus {
+    text-decoration: underline;
+}
