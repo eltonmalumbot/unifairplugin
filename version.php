@@ -24,8 +24,8 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2026080706;
+$plugin->version   = 2026080707;
 $plugin->requires  = 2024100700; // Moodle 4.5.
 $plugin->component = 'mod_unifair';
 $plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = 'v3.3.6';
+$plugin->release   = 'v3.4.0';
