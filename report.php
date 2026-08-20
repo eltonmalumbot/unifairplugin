@@ -5,14 +5,6 @@
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-//
-// Moodle is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
  * Reports page for mod_unifair.
@@ -25,6 +17,7 @@
 require_once(__DIR__ . '/../../config.php');
 require_once($CFG->dirroot . '/mod/unifair/lib.php');
 require_once($CFG->dirroot . '/mod/unifair/locallib.php');
+require_once($CFG->dirroot . '/mod/unifair/choice_rules.php');
 
 $id = required_param('id', PARAM_INT);
 $cm = get_coursemodule_from_id('unifair', $id, 0, false, MUST_EXIST);
@@ -32,7 +25,6 @@ $course = $DB->get_record('course', ['id' => $cm->course], '*', MUST_EXIST);
 $unifair = $DB->get_record('unifair', ['id' => $cm->instance], '*', MUST_EXIST);
 
 require_login($course, true, $cm);
-
 $context = context_module::instance($cm->id);
 require_capability('mod/unifair:viewreport', $context);
 
@@ -90,14 +82,9 @@ foreach ($choices as $choice) {
     }
 }
 
-// ---- Excel export using core dataformat (real .xlsx / .csv, not a fake .xls). ----
 $export = optional_param('export', '', PARAM_ALPHA);
 if ($export === 'xlsx' || $export === 'csv') {
-    // Moodle's core Excel dataformat is named "excel", even though the
-    // downloaded file it creates uses the .xlsx extension. Passing "xlsx"
-    // directly causes core\dataformat to throw an "Invalid dataformat" error.
     $dataformat = ($export === 'xlsx') ? 'excel' : 'csv';
-
     $columns = ['no', 'fullname', 'username', 'session', 'university', 'timecreated'];
     $rows = [];
     $no = 1;
@@ -114,13 +101,7 @@ if ($export === 'xlsx' || $export === 'csv') {
             userdate($choice->timecreated, '%d/%m/%Y %H:%M'),
         ];
     }
-
-    \core\dataformat::download_data(
-        'Laporan_Unifair_' . $unifair->id,
-        $dataformat,
-        $columns,
-        $rows
-    );
+    \core\dataformat::download_data('Laporan_Unifair_' . $unifair->id, $dataformat, $columns, $rows);
     exit;
 }
 
@@ -163,19 +144,23 @@ echo html_writer::link($exporturl, get_string('exportxlsx', 'unifair'), ['class'
 
 $enrolledstudents = $nogroupaccess ? [] : get_enrolled_users($context, 'mod/unifair:choose', $groupid,
     'u.id,u.firstname,u.lastname,u.username', 'u.lastname,u.firstname');
-$sessioncount = count($DB->get_records('unifair_session', ['unifairid' => $unifair->id]));
-$choicesessions = [];
+$sessioncount = $DB->count_records('unifair_session', ['unifairid' => $unifair->id]);
+$requiredchoices = unifair_required_choice_count($unifair, $sessioncount);
+$choicecounts = [];
 foreach ($choices as $choice) {
-    $choicesessions[$choice->userid][(int) $choice->sessionid] = true;
+    if (!isset($choicecounts[$choice->userid])) {
+        $choicecounts[$choice->userid] = 0;
+    }
+    $choicecounts[$choice->userid]++;
 }
 $incomplete = array_filter($enrolledstudents,
-    static fn($student) => count($choicesessions[$student->id] ?? []) < $sessioncount);
+    static fn($student) => ($choicecounts[$student->id] ?? 0) < $requiredchoices);
 
 echo $OUTPUT->box_start('infobox');
 echo html_writer::tag('h3', get_string('summarystats', 'unifair'));
 echo html_writer::tag('p', html_writer::tag('strong', get_string('totalitems', 'unifair')) . ': ' . count($universities));
-echo html_writer::tag('p', html_writer::tag('strong', get_string('totalsessions', 'unifair')) . ': ' .
-    $DB->count_records('unifair_session', ['unifairid' => $unifair->id]));
+echo html_writer::tag('p', html_writer::tag('strong', get_string('totalsessions', 'unifair')) . ': ' . $sessioncount);
+echo html_writer::tag('p', html_writer::tag('strong', get_string('requiredchoices', 'unifair')) . ': ' . $requiredchoices);
 echo html_writer::tag('p', html_writer::tag('strong', get_string('totalchoices', 'unifair')) . ': ' . count($choices));
 echo html_writer::tag('p', html_writer::tag('strong', get_string('totalstudents', 'unifair')) . ': ' .
     count(array_unique(array_map(static fn($choice) => $choice->userid, $choices))));
@@ -184,10 +169,10 @@ echo html_writer::tag('p', html_writer::tag('strong', get_string('incompletestud
 echo $OUTPUT->box_end();
 
 if ($incomplete) {
-    echo html_writer::tag('h3', get_string('incompletestudentlist', 'unifair'));
+    echo html_writer::tag('h3', get_string('incompletestudentlisttarget', 'unifair', $requiredchoices));
     $items = [];
     foreach ($incomplete as $student) {
-        $items[] = fullname($student) . ' (' . count($choicesessions[$student->id] ?? []) . '/' . $sessioncount . ')';
+        $items[] = fullname($student) . ' (' . ($choicecounts[$student->id] ?? 0) . '/' . $requiredchoices . ')';
     }
     echo html_writer::alist($items);
 }
@@ -197,15 +182,10 @@ echo html_writer::start_div('table-responsive');
 $table = new html_table();
 $table->attributes['class'] = 'table table-bordered table-striped';
 $table->head = [
-    get_string('session', 'unifair'),
-    get_string('uniname', 'unifair'),
-    get_string('totalchoices', 'unifair'),
-    get_string('capacity', 'unifair'),
-    get_string('remaining', 'unifair'),
-    get_string('percentagefull', 'unifair'),
-    get_string('status', 'unifair'),
+    get_string('session', 'unifair'), get_string('uniname', 'unifair'), get_string('totalchoices', 'unifair'),
+    get_string('capacity', 'unifair'), get_string('remaining', 'unifair'),
+    get_string('percentagefull', 'unifair'), get_string('status', 'unifair'),
 ];
-
 foreach ($totals as $uni) {
     if ($uni['capacity'] === 0) {
         $remaining = get_string('unlimited', 'unifair');
@@ -222,7 +202,6 @@ foreach ($totals as $uni) {
             $status = html_writer::tag('span', get_string('available', 'unifair'), ['class' => 'badge badge-success']);
         }
     }
-
     $table->data[] = [
         format_string($uni['sessionname']), format_string($uni['name']), $uni['count'],
         $uni['capacity'] === 0 ? get_string('unlimited', 'unifair') : $uni['capacity'],
@@ -238,7 +217,6 @@ $table2 = new html_table();
 $table2->attributes['class'] = 'table table-bordered table-striped';
 $table2->head = ['No', get_string('fullname'), get_string('username'), get_string('session', 'unifair'),
     get_string('uniname', 'unifair'), get_string('timecreated', 'unifair')];
-
 $no = 1;
 foreach ($choices as $choice) {
     $table2->data[] = [
