@@ -272,6 +272,12 @@ function xmldb_unifair_upgrade($oldversion) {
         // Reset existing activities to 0 so upgrading cannot unexpectedly
         // change their established one-choice-per-session behaviour. Admins
         // can then explicitly set a total target such as 4 in activity settings.
+        $table = new xmldb_table('unifair');
+        $field = new xmldb_field('maxchoices', XMLDB_TYPE_INTEGER, '3', null,
+            XMLDB_NOTNULL, null, '0', 'introformat');
+        if ($dbman->field_exists($table, $field)) {
+            $dbman->change_field_default($table, $field);
+        }
         $DB->set_field('unifair', 'maxchoices', 0);
 
         upgrade_mod_savepoint(true, 2026080707, 'unifair');
