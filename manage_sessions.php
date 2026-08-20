@@ -110,6 +110,18 @@ if ($action === 'delete' && $sessionid) {
         redirect($returnurl, get_string('sessiondeleteblocked', 'unifair', $unicount), null,
             \core\output\notification::NOTIFY_ERROR);
     }
+
+    $configuredlimit = max(0, (int) ($unifair->maxchoices ?? 0));
+    if ($configuredlimit > 0) {
+        $sessioncount = $DB->count_records('unifair_session', ['unifairid' => $unifair->id]);
+        $remainingafterdelete = max(0, $sessioncount - 1);
+        if ($remainingafterdelete < $configuredlimit) {
+            redirect($returnurl,
+                get_string('requiredchoicesexceedssessions', 'unifair', $remainingafterdelete),
+                null, \core\output\notification::NOTIFY_ERROR);
+        }
+    }
+
     if (optional_param('confirm', 0, PARAM_INT) && confirm_sesskey()) {
         $transaction = $DB->start_delegated_transaction();
         $DB->delete_records('unifair_attendance', [
