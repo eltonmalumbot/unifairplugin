@@ -266,5 +266,16 @@ function xmldb_unifair_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026080705, 'unifair');
     }
 
+    if ($oldversion < 2026080707) {
+        // maxchoices has existed since the earliest plugin schema with a
+        // default of 3, but v3.3.6 and earlier never read or enforced it.
+        // Reset existing activities to 0 so upgrading cannot unexpectedly
+        // change their established one-choice-per-session behaviour. Admins
+        // can then explicitly set a total target such as 4 in activity settings.
+        $DB->set_field('unifair', 'maxchoices', 0);
+
+        upgrade_mod_savepoint(true, 2026080707, 'unifair');
+    }
+
     return true;
 }
