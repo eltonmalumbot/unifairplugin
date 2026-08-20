@@ -47,6 +47,12 @@ class mod_unifair_mod_form extends moodleform_mod {
 
         $mform->addElement('header', 'unifairsettings', get_string('configunifair', 'unifair'));
 
+        $mform->addElement('text', 'maxchoices', get_string('requiredchoices', 'unifair'), ['size' => 6]);
+        $mform->setType('maxchoices', PARAM_INT);
+        $mform->setDefault('maxchoices', 0);
+        $mform->addRule('maxchoices', null, 'numeric', null, 'client');
+        $mform->addHelpButton('maxchoices', 'requiredchoices', 'unifair');
+
         if (!$isupdate) {
             // Bulk quick-setup, only offered when first creating the
             // activity. Universities can be added, edited, given any
@@ -76,10 +82,39 @@ class mod_unifair_mod_form extends moodleform_mod {
      * @return array
      */
     public function validation($data, $files) {
+        global $DB;
+
         $errors = parent::validation($data, $files);
 
         if (!empty($data['timeopen']) && !empty($data['timeclose']) && $data['timeclose'] <= $data['timeopen']) {
             $errors['timeclose'] = get_string('timeopenclosevalidation', 'unifair');
+        }
+
+        $requiredchoices = isset($data['maxchoices']) ? (int) $data['maxchoices'] : 0;
+        if ($requiredchoices < 0) {
+            $errors['maxchoices'] = get_string('requiredchoicesnonnegative', 'unifair');
+        }
+
+        if (!empty($this->_cm) && $requiredchoices > 0) {
+            $unifairid = (int) $this->_cm->instance;
+            $sessioncount = $DB->count_records('unifair_session', ['unifairid' => $unifairid]);
+            if ($requiredchoices > $sessioncount) {
+                $errors['maxchoices'] = get_string('requiredchoicesexceedssessions', 'unifair', $sessioncount);
+            } else {
+                $existingmax = (int) $DB->get_field_sql(
+                    "SELECT COALESCE(MAX(choicecount), 0)
+                       FROM (
+                           SELECT userid, COUNT(*) AS choicecount
+                             FROM {unifair_choice}
+                            WHERE unifairid = :unifairid
+                         GROUP BY userid
+                       ) choicecounts",
+                    ['unifairid' => $unifairid]
+                );
+                if ($existingmax > $requiredchoices) {
+                    $errors['maxchoices'] = get_string('requiredchoicesbelowexisting', 'unifair', $existingmax);
+                }
+            }
         }
 
         return $errors;
