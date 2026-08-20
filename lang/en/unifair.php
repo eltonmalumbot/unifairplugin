@@ -33,6 +33,11 @@ $string['pluginadministration'] = 'University Fair administration';
 $string['configunifair'] = 'University Fair settings';
 $string['maxchoices'] = 'Maximum choices per student';
 $string['maxchoicesvalidation'] = 'Maximum choices must be at least 1.';
+$string['requiredchoices'] = 'Required choices per student';
+$string['requiredchoices_help'] = 'Enter 0 to keep the legacy behaviour: students select exactly one university in every session. Enter a number such as 4 to lock each student to exactly 4 total choices, while still allowing at most one university per session.';
+$string['requiredchoicesnonnegative'] = 'Required choices cannot be negative.';
+$string['requiredchoicesexceedssessions'] = 'Required choices cannot exceed the number of available sessions ({$a}).';
+$string['requiredchoicesbelowexisting'] = 'This limit cannot be lowered because a student already has {$a} choices. Correct the student choices first.';
 $string['universitiestext'] = 'Universities (quick bulk setup)';
 $string['universitiestext_help'] = 'Optional: quickly add several universities when creating the activity. One per line, format: <br><b>Name|Capacity</b><br><br>Example:<br>Universitas Indonesia|50 (quota of 50)<br>Universitas Terbuka|0 (no quota / unlimited)<br><br>You can add, edit, or delete universities individually at any time afterwards from "Kelola Universitas" (Manage Universities).';
 $string['manageuninotice'] = 'Universities are managed from the "Kelola Universitas" (Manage Universities) page, available after saving.';
@@ -91,6 +96,9 @@ $string['backtoactivity'] = '&laquo; Kembali ke aktivitas';
 // Student-facing.
 $string['pickmax'] = 'Pilih maksimal {$a} Universitas:';
 $string['pickonepersession'] = 'Select exactly one university in every session.';
+$string['pickrequiredtotal'] = 'Select exactly {$a} universities. Maximum one university per session.';
+$string['choiceprogress'] = 'Choice progress: {$a->current}/{$a->required}.';
+$string['choicetargetreached'] = 'Your target of {$a} choices is complete. Other sessions are locked.';
 $string['savechoices'] = 'Simpan Pilihan Saya';
 $string['choicessaved'] = 'Pilihan Anda berhasil disimpan.';
 $string['savesession'] = 'Save This Session';
@@ -104,6 +112,8 @@ $string['nopermissiontochoose'] = 'Anda tidak memiliki izin untuk membuat piliha
 
 // Errors.
 $string['error_toomanychoices'] = 'Anda hanya boleh memilih maksimal {$a} universitas.';
+$string['error_choicelimit'] = 'You may save only {$a} university choices in this activity.';
+$string['error_exactchoices'] = 'Save exactly {$a} university choices.';
 $string['error_someitemsfull'] = 'Nothing was changed because these universities became full while you were saving: {$a}. Choose another university and try again.';
 $string['error_invalidchoices'] = 'The submitted choices are invalid. Please reload the page and try again.';
 $string['error_onepersession'] = 'You may select only one university per session.';
@@ -134,10 +144,7 @@ $string['unifair:viewreport'] = 'View University Fair reports';
 $string['unifair:managechoices'] = 'Edit student University Fair choices';
 $string['unifair:manageattendance'] = 'Edit University Fair attendance';
 
-// Privacy (metadata declared without a full provider — see README for scope note).
 $string['privacy:metadata'] = 'The University Fair plugin stores each student\'s university choices.';
-
-// Privacy metadata detail.
 $string['privacy:metadata:unifair_choice'] = 'Information about a student\'s university choice.';
 $string['privacy:metadata:unifair_choice:uniid'] = 'The university that was chosen.';
 $string['privacy:metadata:unifair_choice:userid'] = 'The ID of the user who made the choice.';
@@ -156,6 +163,8 @@ $string['remainingplaces'] = '{$a} places remaining';
 $string['managechoices'] = 'Edit student choices';
 $string['selectstudent'] = 'Select a student';
 $string['teacherchoicesaved'] = 'The student choices were saved.';
+$string['teacherrequiredchoicesnotice'] = 'Target mode is active: the student must have exactly {$a} total choices. Use "No choice in this session" for sessions that are not used.';
+$string['noselectionforsession'] = 'No choice in this session';
 $string['attendance'] = 'Attendance';
 $string['selectsession'] = 'Select a session';
 $string['unmarked'] = 'Not marked';
@@ -166,6 +175,7 @@ $string['attendancesaved'] = 'Attendance was saved.';
 $string['error_attendancebusy'] = 'Attendance is being updated by another request. Try again shortly.';
 $string['incompletestudents'] = 'Students with incomplete choices';
 $string['incompletestudentlist'] = 'Students who have not selected every session';
+$string['incompletestudentlisttarget'] = 'Students who have not reached the {$a}-choice target';
 $string['importdata'] = 'Import sessions and universities';
 $string['importfile'] = 'CSV or XLSX file';
 $string['import'] = 'Import';
