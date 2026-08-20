@@ -10,9 +10,6 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
  * Student-facing view/submission page for mod_unifair.
@@ -25,6 +22,7 @@
 require_once(__DIR__ . '/../../config.php');
 require_once($CFG->dirroot . '/mod/unifair/lib.php');
 require_once($CFG->dirroot . '/mod/unifair/locallib.php');
+require_once($CFG->dirroot . '/mod/unifair/choice_rules.php');
 
 $id = optional_param('id', 0, PARAM_INT);
 $u  = optional_param('u', 0, PARAM_INT);
@@ -75,8 +73,6 @@ if (data_submitted()) {
             \core\output\notification::NOTIFY_ERROR);
     }
 
-    // Only consider choices that actually belong to this activity, to
-    // reject any tampered/foreign uniid values from the submitted form.
     $validuniids = $DB->get_fieldset_select('unifair_uni', 'id', 'unifairid = ?', [$unifair->id]);
     if (!in_array($choice, array_map('intval', $validuniids), true)) {
         redirect($PAGE->url, get_string('error_invalidchoices', 'unifair'), null,
@@ -89,13 +85,16 @@ if (data_submitted()) {
             \core\output\notification::NOTIFY_ERROR);
     }
 
-    $result = unifair_apply_choices($unifair, $USER->id, $choices, [$targetsessionid], false);
+    try {
+        $result = unifair_apply_choices_with_limit($unifair, $USER->id, $choices,
+            [$targetsessionid], false, false);
+    } catch (moodle_exception $e) {
+        redirect($PAGE->url, $e->getMessage(), null, \core\output\notification::NOTIFY_ERROR);
+    }
 
     if (!empty($result['failed'])) {
-        // Fetch the names of the items that failed for a clear message.
         [$insql, $inparams] = $DB->get_in_or_equal($result['failed']);
         $failednames = $DB->get_fieldset_select('unifair_uni', 'uniname', "id $insql", $inparams);
-
         redirect($PAGE->url,
             get_string('error_someitemsfull', 'unifair', implode(', ', $failednames)),
             null, \core\output\notification::NOTIFY_WARNING);
@@ -114,6 +113,9 @@ foreach ($universities as $uni) {
 }
 $userchoices = $DB->get_records_menu('unifair_choice',
     ['unifairid' => $unifair->id, 'userid' => $USER->id], '', 'uniid, id');
+$requiredchoices = unifair_required_choice_count($unifair, count($sessions));
+$currentchoicecount = count($userchoices);
+$choicetargetreached = $requiredchoices > 0 && $currentchoicecount >= $requiredchoices;
 $lockedbysession = [];
 foreach (array_keys($userchoices) as $chosenuniid) {
     if (isset($universities[$chosenuniid])) {
@@ -157,7 +159,16 @@ if (!empty($unifair->timeopen) && $now < $unifair->timeopen) {
 } else if (!has_capability('mod/unifair:choose', $context)) {
     echo $OUTPUT->notification(get_string('nopermissiontochoose', 'unifair'), 'info');
 } else {
-    echo html_writer::tag('p', html_writer::tag('strong', get_string('pickonepersession', 'unifair')));
+    if ((int) ($unifair->maxchoices ?? 0) > 0) {
+        echo html_writer::tag('p', html_writer::tag('strong',
+            get_string('pickrequiredtotal', 'unifair', $requiredchoices)));
+        echo $OUTPUT->notification(get_string('choiceprogress', 'unifair', (object) [
+            'current' => $currentchoicecount,
+            'required' => $requiredchoices,
+        ]), $choicetargetreached ? 'success' : 'info');
+    } else {
+        echo html_writer::tag('p', html_writer::tag('strong', get_string('pickonepersession', 'unifair')));
+    }
 
     echo html_writer::start_div('unifair-university-list');
 
@@ -183,8 +194,11 @@ if (!empty($unifair->timeopen) && $now < $unifair->timeopen) {
         }
         if ($sessionlocked) {
             echo $OUTPUT->notification(get_string('choicelockednotice', 'unifair'), 'success');
+        } else if ($choicetargetreached && (int) ($unifair->maxchoices ?? 0) > 0) {
+            echo $OUTPUT->notification(get_string('choicetargetreached', 'unifair', $requiredchoices), 'info');
         }
-        if ($sessionopen && $sessionunis && !$sessionlocked) {
+        $canselectsession = $sessionopen && $sessionunis && !$sessionlocked && !$choicetargetreached;
+        if ($canselectsession) {
             echo html_writer::start_tag('form', [
                 'method' => 'post', 'action' => $PAGE->url, 'class' => 'unifair-choice-form']);
             echo html_writer::empty_tag('input', [
@@ -209,13 +223,13 @@ if (!empty($unifair->timeopen) && $now < $unifair->timeopen) {
                 'type' => 'radio', 'name' => 'unichoice',
                 'value' => $uni->id, 'class' => 'form-check-input',
             ];
-            if ($sessionopen) {
+            if ($canselectsession) {
                 $attrs['required'] = 'required';
             }
             if ($ischecked) {
                 $attrs['checked'] = 'checked';
             }
-            if (!$sessionopen || $sessionlocked || ($isfull && !$ischecked)) {
+            if (!$canselectsession || ($isfull && !$ischecked)) {
                 $attrs['disabled'] = 'disabled';
             }
             echo html_writer::start_div('form-check mb-2 unifair-uni-row');
@@ -225,7 +239,7 @@ if (!empty($unifair->timeopen) && $now < $unifair->timeopen) {
             echo html_writer::end_tag('label');
             echo html_writer::end_div();
         }
-        if ($sessionopen && $sessionunis && !$sessionlocked) {
+        if ($canselectsession) {
             echo html_writer::tag('button', get_string('savesession', 'unifair'), [
                 'type' => 'submit', 'class' => 'btn btn-primary mt-3']);
             echo html_writer::end_tag('form');
